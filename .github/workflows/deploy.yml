@@ -23,11 +23,11 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: Setup pages
-        uses: action/upload_pages_artifact@v3
+        uses: action/upload-pages-artifact@v3
         with:
           path: .
       
       - name: Deploy
         id: deployment
-        uses: actions/deploy_pages@v4
+        uses: actions/deploy-pages@v4
 
