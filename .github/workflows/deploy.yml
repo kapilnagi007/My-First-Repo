@@ -1,0 +1,33 @@
+name: Deploy HTML to GitHub Actions
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.output.page_url }}
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/configure-pages@v4
+
+      - name: Setup pages
+        uses: action/upload_pages_artifact@v3
+        with:
+          path: .
+      
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy_pages@v4
+
