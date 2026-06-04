@@ -39,6 +39,17 @@ pipeline {
             sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG -f react-demo/Dockerfile react-demo'
           }
         }
+        stage('Install & Run Trivy') {
+            steps {
+                script {
+                    // Downloads the standalone binary directly to the workspace without needing root access
+                    sh 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b .'
+                    
+                    // Execute the scan using the local binary (./trivy)
+                    sh './trivy image $IMAGE_NAME:$IMAGE_TAG'
+                }
+            }
+        }
 
         stage('Push Image') {
           steps {
