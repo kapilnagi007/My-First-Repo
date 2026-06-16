@@ -6,19 +6,40 @@ pipeline {
       IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
+    tools {
+      sonarQube 'sonar-scanner'
+    }
+
     stages {
 
         stage('Cleanup Workspace') {
         steps {
           deleteDir()
+          }
         }
-      }
         stage('Checkout') {
             steps {
                 git branch: 'main',
                   credentialsId: 'GitHub-ssh-new',
                   url: 'git@github.com:kapilnagi007/My-First-Repo.git'
             }
+        }
+        stage('Install Dependencies'){
+          steps{
+            sh 'npm install -- force'
+          }
+        }
+
+        stage('Sonar Scan') {
+          steps {
+            script{
+              def scannerHome = tool 'sonar-scanner'
+
+              withSonarQubeEnv('sonarqube') {
+                sh '${scannerHome}/bin/sonar-scanner'
+              }
+            }
+          }
         }
         
         stage('Test Docker'){
