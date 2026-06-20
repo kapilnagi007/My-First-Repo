@@ -1,36 +1,59 @@
-# This is a basic workflow to help you get started with Actions
+name: CI/CD Build and Deploy
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+  workflow_dispatch: # Allows you to run the workflow manually from the Actions tab
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+env:
+  IMAGE_NAME: "kopilnagi/react-demo-docker"
+  # GITHUB_RUN_NUMBER acts exactly like Jenkins' ${BUILD_NUMBER}
+  IMAGE_TAG: ${{ github.run_number }} 
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    # 'ubuntu-latest' comes with Docker, git, curl, and a clean workspace out of the box
+    runs-on: ubuntu-latest 
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      # Stage: Cleanup Workspace & Checkout
+      # GitHub Actions automatically starts with a clean workspace when using actions/checkout
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      # Stage: Test Docker
+      - name: Test Docker
+        run: docker ps
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      # Stage: Debug
+      - name: Debug
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          pwd
+          ls -la
+
+      # Stage: Build Docker Image
+      - name: Build Docker Image
+        run: docker build -t $IMAGE_NAME:$IMAGE_TAG -f react-demo/Dockerfile react-demo
+
+      # Stage: Install & Run Trivy
+      # Using the official Aquasecurity Trivy action is cleaner, but this keeps your exact logic
+      - name: Install & Run Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b .
+          ./trivy image $IMAGE_NAME:$IMAGE_TAG
+
+      # Stage: Push Image
+      - name: Log in to Docker Hub and Push Image
+        run: |
+          echo "${{ secrets.DOCKER_PASS }}" | docker login -u "${{ secrets.DOCKER_USER }}" --password-stdin
+          docker push $IMAGE_NAME:$IMAGE_TAG
+
+      # Stage: Deploy
+      # Note: 'ubuntu-latest' runs on GitHub-hosted runners. 
+      # If you want to deploy to your own local server, see the architectural note below.
+      - name: Deploy
+        run: |
+          docker stop react-app || true
+          docker rm react-app || true
+          docker run -d --name react-app -p 80:80 $IMAGE_NAME:$IMAGE_TAG
